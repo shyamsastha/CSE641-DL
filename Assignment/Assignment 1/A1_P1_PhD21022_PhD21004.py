@@ -28,7 +28,7 @@ def prediction(y_hat):
   if y_hat >= 0:
     return 1
   else:
-    return 0
+    return -1
 
 # Decision boundary line is given by x1w1 + x2w2 + b = 0
 # Reforming this equation to get x2 = -(x1w1 + b)/w2 as boundary function
@@ -48,9 +48,11 @@ def boundN(w1, b):
 
 # Defining the plot function for 2 inputs
 def plotbound(X1, X2, pp, y, cc):
+    c = np.array(y)
+    c[c == -1] = 0
     xp, yp = x.T
     colormap = np.array(['r', 'g'])
-    plt.scatter(xp, yp, s=20, c=colormap[y])
+    plt.scatter(xp, yp, s=20, c=colormap[c])
     plt.plot(X1,X2, color=cc)
     plt.xlabel('X1')
     plt.ylabel('X2')
@@ -69,11 +71,17 @@ def plotboundN(X1, pp, cc):
 
 # Defining the function to train the perceptron and plot the boundaries
 def train(x, y, pp, G):
+    """
     # Initialize random values of weights for w1 and w2
     w = np.random.randint(3, size=(1, 3))
     w1 = w[0][0]
     w2 = w[0][1]
     bias = w[0][2]
+    """
+    # Initialize randomly chosen weights
+    w1 = 1
+    w2 = 1
+    bias = -1
 
     # Find out the error for the first iteration
     X1 = [None] * 4
@@ -93,15 +101,14 @@ def train(x, y, pp, G):
     # The PTA runs till convergence for a linearly separable problem
     max = 100
     itr = 1
-    lr = 0.2
     wandb = [[w1, w2, bias]]
-    while i < max & E != 0:
+    while itr < max & E != 0:
         for i in range(len(x)):
             y_hat = prediction(np.dot(np.array([w1, w2]) , x[i])  + bias)
             error[i] = y[i] - y_hat
-            w1 = w1 + lr * error[i] * x[i][0]
-            w2 = w2 + lr * error[i] * x[i][1]
-            bias = bias + lr * error[i]
+            w1 = w1 + y[i] * x[i][0]
+            w2 = w2 + y[i] * x[i][1]
+            bias = bias + y[i]
             X1[i] = x[i][0]
             X2[i] = bound(x[i][0], w1, bias, w2)
         plotbound(X1, X2, pp, y, "black")
@@ -110,15 +117,23 @@ def train(x, y, pp, G):
     plotbound(X1, X2, pp, y, "green")
     wandb.append([w1, w2, bias])
     plt.clf()
-    print("Final number of iterations for the {} PTA: {}".format(G, itr+1))
+    if(G == "XOR"):
+        print("Nuumber of iterations before quiting for the {} PTA: {}".format(G, itr+1))
+    else:
+        print("Final number of iterations for the {} PTA: {}".format(G, itr+1))
     print("Inital and Final weights & bias for the {} PTA: {}".format(G, wandb))
 
 # Defining the training function for NOT gate
 def trainN(x, y, pp, G):
+    """
     # Initialize random values of weights for w1 and w2
     w = np.random.randint(3, size=(1, 2))
     w1 = w[0][0]
     bias = w[0][1]
+    """
+    # Initialize randomly chosen weights
+    w1 = 1
+    bias = -1
 
     # Find out the error for the first iteration
     X1 = [None] * 2
@@ -136,14 +151,13 @@ def trainN(x, y, pp, G):
     # The PTA runs till convergence for a linearly separable problem
     max = 50
     itr = 1
-    lr = 0.2
     wandb = [[w1, bias]]
-    while i < max & E != 0:
+    while itr < max & E != 0:
         for i in range(len(x)):
             y_hat = prediction(np.dot(w1, x[i])  + bias)
             error[i] = y[i] - y_hat
-            w1 = w1 + lr * error[i] * x[i]
-            bias = bias + lr * error[i]
+            w1 = w1 + y[i] * x[i]
+            bias = bias + y[i]
             X1[i] = boundN(w1, bias)
         plotboundN(X1, pp, "black")
         E = np.sum(error) # Sum of errors
@@ -157,11 +171,11 @@ def trainN(x, y, pp, G):
 
 # Inputs and Expected outputs for AND, OR and NOT gates
 x = np.array([[0,0], [0,1], [1,0], [1,1]])
-y_AND = np.array([0, 0, 0, 1])
-y_OR = np.array([0, 1, 1, 1])
+y_AND = np.array([-1, -1, -1, 1])
+y_OR = np.array([-1, 1, 1, 1])
 x_NOT = np.array([0, 1])
-y_NOT = np.array([1, 0])
-y_XOR = np.array([0, 1, 1, 0])
+y_NOT = np.array([1, -1])
+y_XOR = np.array([-1, 1, 1, -1])
 
 # Train models and create plots for AND - Q1, a & b
 pp_AND = PdfPages('Iteration_plots_AND.pdf') # Q1, b
