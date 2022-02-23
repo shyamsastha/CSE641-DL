@@ -2,7 +2,7 @@
 """
 CSE641 - Deep Learning - Assignment 1
 
-PART I: Perceptron Training Algorithm
+PART I: Perceptron Training Algorithm - Question 1
 
 @author: Shyama Sastha
 """
@@ -213,11 +213,4 @@ pp_XOR.close()
 dsiplayed in the results depends on the number of iterations the conditional loop runs for.
 The actual number of iterations it took before repeating pattern is 6.
 It can be seen in the generated plots.
-"""
-
-
-"""
-Implementation of Madeleine learning algorithm for f(x1, x2)
-# Points to be noted:
-    #
 """
