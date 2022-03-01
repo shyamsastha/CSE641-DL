@@ -11,6 +11,7 @@ PART I: Perceptron Training Algorithm - Question 2
 #import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import joblib
 
 """
 Q2 a
@@ -27,8 +28,7 @@ class MadalineNetwork:
   The entire Madaline network design is encapsulated by this class
   """
 
-  # Defining the initalizer for the class
-  def __init__(self, xn = 2, ns = 16, rs = 4, eta = 1, epochs = 1000):
+  def __init__(self, xn = 2, ns = 16, rs = 4, eta = 1, epochs = 100):
         """
         Init function to set the inital parameters for class variables
         Params:
@@ -93,7 +93,7 @@ class MadalineNetwork:
         yl.append(np.random.randn(1)[0])
         self.ws.append(np.array(yl)) # Converting to array to maintain the format of the weights
 
-  def propf(self, x):
+  def fit(self, x):
         """
         Function to do a forward propagation of weights and predict output
         Params:
@@ -127,18 +127,23 @@ class MadalineNetwork:
             o = 1 if o == 0 else 1
 
         return o # Final output of the network
-  def train(self, X, y):
+
+  def train(self, X, y, l):
       '''
       Function to train the Madaline network model
       Params:
               x - inputs
               y - desired outputs
+              l - list to keep trach of loss per epoch
       '''
       for epoch in range(self.epochs):
+          e = 0
           for x, d in zip(X, y):
-              y_hat = self.propf(x)
+              y_hat = self.fit(x)
+              e += abs(d - y_hat)
               if d - y_hat != 0:
                 self.Madaline(x, d)
+          l.append(e/144)
 
   def Madaline(self, x, d):
         """
@@ -185,7 +190,7 @@ class MadalineNetwork:
                 flag = (1, hl2z.index(mz)) # Index of the neuron is stored if flipped
             else:
                 flag = (2, ylz.index(mz)) # Index of the neuron is stored if flipped
-            if d == self.propf(x): # Check if the flipping of neuron helped change prediction
+            if d == self.fit(x): # Check if the flipping of neuron helped change prediction
                 n = flag[1]
                 if flag[0] == 0:
                     dd = 1 if hl1o[flag[1]] == 0 else 0 # Take flipped output as desired output
@@ -226,22 +231,33 @@ for i in X:
     else:
         d.append(0)
 
-mn = MadalineNetwork(xn = 2, ns = 16, rs = 4, eta = 1, epochs = 1000)
-mn.train(X,d) # Train the network
+mn = MadalineNetwork(xn = 2, ns = 16, rs = 4, eta = 1, epochs = 100)
+loss = []
+mn.train(X,d,loss) # Train the network
+
+# Computing the graph of training loss
+epochs = [i for i in range(1,101)]
+plt.scatter(epochs, loss, label='training error')
+plt.xlabel('epochs')
+plt.ylabel('(1/N * net error) per epoch')
+plt.title("Training Error per epoch")
+plt.savefig("training_error_Madaline.pdf")
+
 print("\nThe weights of the entire Madaline network are: \n")
 print(mn.ws)
 print('\n')
 y_pred = []
 E = 0
-cp = 0
+cp = 0 # Correct predictions
 for x, y in zip(X,d):
-    y_hat = mn.propf(x)
+    y_hat = mn.fit(x)
     y_pred.append(y_hat)
-    E += y - y_hat
+    E += abs(y - y_hat)
     if (y == y_hat):
         cp += 1
+#joblib.dump(mn, "Madaline")
 
-print("The total squared error for {} epochs of dataset of size {} = {}\n".format(1000, len(d), (0.5 * E ** 2)))
+print("The total squared error for {} epochs of dataset of size {} = {}\n".format(100, len(d), (1/144 * E ** 2)))
 print("Accuracy = {}".format(cp/144))
 
 """
