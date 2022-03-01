@@ -9,155 +9,240 @@ PART I: Perceptron Training Algorithm - Question 2
 
 # imports
 #import tensorflow as tf
-from numpy.random import random
+import numpy as np
+import matplotlib.pyplot as plt
 
 """
 Q2 a
 Implementation of Madeleine learning algorithm for f(x1, x2)
 # Points to be noted:
     # There are 2 inputs
-    # 12 neurons in the first hidden layer
-    # 5 neurons in the second hidden layer
-    # 1 neuron in the output layer classifying y as 0 or 1
-    The following abbreviations are used throughout:
-        # mn - Madaline Network
-        # xn - number of inputs x
-        # hn - number of hidden layers h
-        # yn - number of outputs y in the output layer
-        # n - neuron
-        # delz - delta value calculated as (desired - predicted)
-        # hl - hidden layer
-        # w - weights
-        # row - row of data sample
-        # z - net input to a neuron Sum(wijxi) + b
-        # l - layer
-        # nlx - inputs for next layer
-        # o - output of a neuron
-        # d - desired output value
-        # y - predicted output value
-        # eta - learning rates
-        # nE - number of epochs
-        # e - error
-        # E - sum of square errors between desired and predicted
+    # 16 neurons in the first hidden layer - hl1
+    # 5 neurons in the second hidden layer - for the 5 different regions - hl2
+    # 1 neuron in the output layer classifying y as 0 or 1 - yl
 """
 
-# Defining the activation function
-def activation(y):
-    if y >= 0:
-      return 1
-    else:
-      return -1
+class MadalineNetwork:
+  """
+  The entire Madaline network design is encapsulated by this class
+  """
 
-# Defining the function to create a Madaline network with random weights
-def init_mn(xn, hn1, hn2, yn):
-    mn = []
-    hl1 = [{'w':[random() for i in range(xn+1)], 'i': int(i/4) , 'f': 0, 'l': 0} for i in range(hn1)]
-    mn.append(hl1)
-    hl2 = [{'w':[random() for i in range(hn2+1)], 'i': i, 'f': 0, 'l': 1} for i in range(hn2)]
-    mn.append(hl2)
-    # setting the output layer weights as 1
-    yl = [{'w':[random() for i in range(hn2+1)], 'i': 1, 'l': 2, 'f': 0}]
-    mn.append(yl)
-    return mn
+  # Defining the initalizer for the class
+  def __init__(self, xn = 2, ns = 16, rs = 4, eta = 1, epochs = 1000):
+        """
+        Init function to set the inital parameters for class variables
+        Params:
+            xn - number of inputs
+            ns - number of neurons
+            ws - weights for each of the neurons neurons
+            f - a list of flags that indicate whether a neuron is flipped or not
+            rs - no of regions to be classified for the second layer.
+            eta - learning rate of the network
+            epochs - number of times the network is going to be run for training
+            s - the seed to make sure random generator doesn't generate same weights
+        """
+        self.xn = xn
+        self.ns = ns
+        self.ws = []
+        self.f =[]
+        self.rs = rs
+        self.eta = eta
+        self.epochs = epochs
+        self.s = 1
+        self.loadW()
 
-# Defining the function to create net input  for each neuron
-def zij(n, x):
-    w = n['w']
-    z = w[-1] # The bias is always set as 1
-    for j in range(len(w)-1):
-        z += w[j] * x[j]
-    return z
+  def loadW(self):
+        """
+        Function to load the random inital weights for the network
+        Params:
+            hl1 - weights for hidden layer 1
+            hl2 - weights for hidden layer 2
+            yl - weights for output layer
+        """
+        np.random.seed(self.s)
+        self.s += 1
+        self.ws = []
+        self. f = []
 
-# Defining the function for forward propagation of weights
-def propf(mn, row):
-    x = row[:-1]
-    for i in range(len(mn)):
-        l = mn[i]
-        nlx = [] #input for next layer
-        for n in l:
-            if n['f'] != 1:
-                n['z'] = zij(n, x,)
-                n['o'] = activation(n['z'])
-                nlx.append(n['o'])
+        fl1 = [False for n in range(self.ns)]
+        self.f.append(fl1)
+        fl2 = [False for n in range(self.rs)]
+        self.f.append(fl2)
+        self.f.append([False])
+
+        # For hidden layer 1 - boundary classification
+        hl1 = []
+        for n in range(self.ns):
+            w = np.random.randn(self.xn)
+            hl1.append(w)
+        hl1.append(np.random.randn(1)[0]) # To account for bias value
+        self.ws.append(hl1)
+
+        # For hidden layer 2 - region classification
+        hl2 = []
+        for r in range(self.rs):
+            w = np.random.randn(self.rs)
+            hl2.append(w)
+        hl2.append(np.random.randn(1)[0])
+        self.ws.append(hl2)
+
+        # For the final output layer
+        yl = []
+        w = np.random.randn(self.rs)
+        yl.append(w)
+        yl.append(np.random.randn(1)[0])
+        self.ws.append(np.array(yl)) # Converting to array to maintain the format of the weights
+
+  def propf(self, x):
+        """
+        Function to do a forward propagation of weights and predict output
+        Params:
+            x - input sample
+        Return: output as 0 or 1
+        """
+        hl1 = self.ws[0]
+        hl1o = [] # Outputs for all neurons in hl1
+        for n in range(self.ns):
+            z = np.dot(hl1[n].T, x) + hl1[-1]
+            o = 1 if z > 0 else 0
+            if self.f[0][n]:
+                o = 1 if o == 0 else 1
+            hl1o.append(o)
+
+        hl2 = self.ws[1] # Outputs for all neurons of hl2
+        i = 0 # Variable to keep track of regions so only 4 outputs for first layer go to one neuron in the second layer
+        hl2o = []
+        for r in range(self.rs):
+            z = np.dot(hl2[r].T, hl1o[i:i+4]) + hl2[-1]
+            o = 1 if z > 0 else 0
+            if self.f[1][r]:
+                o = 1 if o == 0 else 1
+            hl2o.append(o)
+            i += 4
+
+        yl = self.ws[2]
+        z = np.dot(yl[0].T, hl2o) + yl[-1]
+        o = 1 if z > 0 else 0
+        if self.f[2][0]:
+            o = 1 if o == 0 else 1
+
+        return o # Final output of the network
+  def train(self, X, y):
+      '''
+      Function to train the Madaline network model
+      Params:
+              x - inputs
+              y - desired outputs
+      '''
+      for epoch in range(self.epochs):
+          for x, d in zip(X, y):
+              y_hat = self.propf(x)
+              if d - y_hat != 0:
+                self.Madaline(x, d)
+
+  def Madaline(self, x, d):
+        """
+          Function to apply madaline algorithm and update weights accordingly
+          Params:
+                  x - input sample
+                  d - desired output
+          Return: None
+        """
+        hl1 = self.ws[0]
+        hl1z = [] # z values for all neurons in hl1
+        hl1o = [] # Outputs for all neurons in hl1
+        for n in range(self.ns):
+              #print(hl1)
+              z = np.dot(hl1[n].T, x) + hl1[-1]
+              hl1z.append(z)
+              o = 1 if z > 0 else 0
+              hl1o.append(o)
+
+        hl2 = self.ws[1]
+        hl2z = [] # z values for all neurons in hl2
+        hl2o = [] # Outputs for all neurons in hl2
+        i = 0
+        for r in range(self.rs):
+            z = np.dot(hl2[r].T, hl1o[i:i+4]) + hl2[-1]
+            hl2z.append(z)
+            o = 1 if z > 0 else 0
+            hl2o.append(o)
+            i += 4
+
+        yl = self.ws[2]
+        ylz = [] # z vlaues for all neurons in yl
+        z = np.dot(yl[0].T, hl2o) + yl[-1]
+        ylz.append(z)
+
+        zc = hl1z + hl2z + ylz # List of all z values
+
+        ut = True # Flag to check if a neuron is untested
+        for i in range(len(zc)):
+            mz = min(zc) # Smallest affine z value
+            if mz in hl1z:
+                flag = (0, hl1z.index(mz)) # Index of the neuron is stored if flipped
+            elif mz in hl2z:
+                flag = (1, hl2z.index(mz)) # Index of the neuron is stored if flipped
             else:
-                nlx.append(n['o'])
-        x = nlx
-    return x
+                flag = (2, ylz.index(mz)) # Index of the neuron is stored if flipped
+            if d == self.propf(x): # Check if the flipping of neuron helped change prediction
+                n = flag[1]
+                if flag[0] == 0:
+                    dd = 1 if hl1o[flag[1]] == 0 else 0 # Take flipped output as desired output
+                    self.ws[0][n] += self.eta * (dd - hl1z[n]) * x
+                    self.ws[0][-1] += self.eta * (dd - hl1z[n])
+                    self.f[0][n] = True
+                elif flag[0] == 1:
+                    dd = 1 if hl1o[flag[1]] == 0 else 0 # Take the flipped output as desired output
+                    self.ws[1][n] += self.eta * (dd - hl2z[n]) * np.array(hl1o).T
+                    self.ws[1][-1] += self.eta * (dd - hl2z[n])
+                    self.f[1][n] = True
+                else:
+                    self.ws[2][0] += self.eta * (d - ylz[0]) * np.array(hl2o).T
+                    self.ws[2][-1] += self.eta * (d - ylz[0])
+                    self.f[2][0] = True
+                ut = False
+                break
+            else:
+                zc.remove(mz) # To find the next smallest affine z value
 
-# Defining the function to identify the neuron with smallest affine z value and flip its output
-def zsafv(mn, row, d):
-    flag = 0
-    flipback(mn)
-    while flag != 1:
-        lzm = []
-        for l in mn:
-            lzm = [n for n in l if n['f'] != 1]
-        mm = min(lzm, key=lambda x:x['z'])
-        for n in mn[mm['l']]:
-            if n['z'] == mm['z']:
-                n['o'] = -1 * n['o']
-                n['f'] = 1
-        flag = (propf(mn, row)[0] == d)
-    return mm
+        if ut:
+            self.loadW()
 
+X = []
+for i in np.arange(0, 12, 1):
+    for j in np.arange(0, 12, 1):
+        X.append([i, j])
 
-# Defining the function to flip back all the flag values
-def flipback(mn):
-    for i in range(len(mn)):
-        for n in mn[i]:
-            n['f'] = 0
+d = []
+for i in X:
+    x1, x2 = i
+    if (((x1 >= 4 and x1 <= 6) and (x2 >= 0 and x2 <= 2)) or
+      ((x1 >= 4 and x1 <= 6) and (x2 >= 4 and x2 <= 6)) or
+      ((x1 >= 4 and x1 <= 6) and (x2 >= 8 and x2 <= 10)) or
+      ((x1 >= 0 and x1 <= 2) and (x2 >= 4 and x2 <= 6)) or
+      ((x1 >= 8 and x1 <= 10) and (x2 >= 4 and x2 <= 6))):
+        d.append(1)
+    else:
+        d.append(0)
 
-# Defining the function for Updating weights
-def updatew(mn, row, lr, d):
-    n = zsafv(mn, row, d)
-    i = n['l']
-    x = row[:-1]
-    if n['l'] != 1:
-        x = [n['o'] for n in mn[i-1]]
-    for k in range(len(x)):
-        n['w'][k] += lr * (d - n['z']) * x[k]
-        n['w'][-1] += lr * (d - n['z'])
-    print('Weights updated successfully')
+mn = MadalineNetwork(xn = 2, ns = 16, rs = 4, eta = 1, epochs = 1000)
+mn.train(X,d) # Train the network
+print("\nThe weights of the entire Madaline network are: \n")
+print(mn.ws)
+print('\n')
+y_pred = []
+E = 0
+cp = 0
+for x, y in zip(X,d):
+    y_hat = mn.propf(x)
+    y_pred.append(y_hat)
+    E += y - y_hat
+    if (y == y_hat):
+        cp += 1
 
-# Defining the function to train the Madaline network for a nE epochs
-def train_mn(mn, ddata, lr, nE, yn):
-    for epoch in range(nE):
-        E = 0
-        for row in data:
-            output = propf(mn, row)[0]
-            d = row[-1]
-            E += 0.5 * (d-output)**2
-            if d != output:
-                updatew(mn, row, lr, d)
-    print('\n')
-    print('-> Final epoch= {}, learning rate= {}, Error= {}, Desired = {}, Predicted= {}'.format(epoch+1, lr, E, d, output))
-    print('\n')
-
-# Sample inputs for training
-data = [[5, 1, 1], [5.5, 1.5, 1],
-        [1, 1, -1], [3, 3 ,-1],
-        [5, 3, -1], [5.5, 3.5, -1],
-        [7, 3, -1], [9, 1, -1],
-        [1, 5, 1], [1.5, 5.5, 1],
-        [3, 5, -1], [3.5, 5.5, -1],
-        [5, 5, 1], [5.5, 5.5, 1],
-        [7, 5, -1], [7.5, 5.5, -1],
-        [9, 5, 1], [9.5, 5.5, 1],
-        [3, 7, -1], [1, 9, -1],
-        [5, 7, -1], [5.5, 7.5, -1],
-        [5, 9, 1], [5.5, 9.5, 1],
-        [7, 7, -1], [9, 9, -1]]
-xn = len(data[0]) - 1
-yn = 1
-mn = init_mn(xn, 16, 4, yn)
-train_mn(mn, data, 0.1, 1000, yn)
-for l in mn:
-    print(l)
-    print("\n")
-
-for row in data:
-    y = propf(mn, row)[0]
-    print('Desired: {}, Predicted: {}' .format(row[-1], y))
+print("The total squared error for {} epochs of dataset of size {} = {}\n".format(1000, len(d), (0.5 * E ** 2)))
+print("Accuracy = {}".format(cp/144))
 
 """
 
